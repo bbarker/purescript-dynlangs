@@ -1,10 +1,10 @@
-name:                psgo
+name:                psmatlab
 version:             0.1.0.0
-github:              "andyarvanitis/purescript-native"
+github:              "bbarker/purescript-dynlangs"
 license:             BSD3
-author:              "Andy Arvanitis"
+author:              "Andy Arvanitis, Brandon Barker"
 maintainer:          "example@example.com"
-copyright:           "2018 Andy Arvanitis"
+copyright:           "2018 Andy Arvanitis, 2019 Brandon Barker"
 
 extra-source-files:
 - README.md
@@ -64,7 +64,7 @@ library:
     - ViewPatterns
 
 executables:
-  psgo:
+  psmatlab:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -72,10 +72,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - psgo
+    - psmatlab
 
 tests:
-  psgo-test:
+  psmatlab-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -83,4 +83,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - psgo
+    - psmatlab

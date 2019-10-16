@@ -54,7 +54,7 @@ jsonToModule :: Value -> Module Ann
 jsonToModule value =
   case parse moduleFromJSON value of
     Success (_, r) -> r
-    _ -> error "failed"                  
+    _ -> error "failed"
 
 main :: IO ()
 main = do
@@ -70,7 +70,7 @@ main = do
             putStrLn help
           when ("--version" `elem` opts') $ do
             let branch = $(gitBranch)
-                details | branch == "golang" = "master, commit " ++ $(gitHash)
+                details | branch == "matlab" = "master, commit " ++ $(gitHash)
                         | otherwise = branch
             putStrLn $ details ++ if $(gitDirty) then " (DIRTY)" else ""
         else do
@@ -113,7 +113,8 @@ main = do
                     Build -> "build"
                     Run -> "run"
     project <- projectEnv
-    callProcess "go" [command, T.unpack project </> modPrefix' </> "Main"]
+    -- callProcess "matlab" $ matlabDefArgs ++ [command, T.unpack project </> modPrefix' </> "Main"]
+    callProcess "matlab" $ matlabDefArgs ++ ["run('src/hello.m')"]
     return ()
 
 generateCode :: [String] -> FilePath -> FilePath -> IO ()
@@ -172,9 +173,9 @@ writeSupportFiles baseOutpath = do
           replaceLoader = project' </> ffiLoader' <> "=" <> currentDir </> subdir
           replaceOutput = project' </> modPrefix' <> "=" <> currentDir </> outputdir'
       B.writeFile goModSource $ T.encodeUtf8 modText'
-      callProcess "go" ["mod", "edit", "-replace", replaceLoader]
-      callProcess "go" ["mod", "edit", "-replace", replaceOutput]
-      callProcess "go" ["clean", "-modcache"]
+      -- callProcess "matlab" ["mod", "edit", "-replace", replaceLoader]
+      -- callProcess "matlab" ["mod", "edit", "-replace", replaceOutput]
+      -- callProcess "matlab" ["clean", "-modcache"]
   writeLoaderFile :: FilePath -> B.ByteString -> IO ()
   writeLoaderFile ffiOutpath loaderText = do
     let loaderSource = ffiOutpath </> "ffi_loader.go"
@@ -190,8 +191,8 @@ projectEnv = do
   T.pack . fromMaybe defaultProject <$> lookupEnv goproject
 
 help :: String
-help = "Usage: psgo OPTIONS COREFN-FILES\n\
-       \  PureScript to native (via go) compiler\n\n\
+help = "Usage: psmatlab OPTIONS COREFN-FILES\n\
+       \  PureScript to MATLAB transpiler\n\n\
        \Available options:\n\
        \  --help                  Show this help text\n\n\
        \  --version               Show the version number\n\n\
@@ -205,9 +206,6 @@ help = "Usage: psgo OPTIONS COREFN-FILES\n\
 corefn :: String
 corefn = "corefn.json"
 
-goSrc :: String
-goSrc = ".go"
-
 goproject :: String
 goproject = "GOPROJECT"
 
@@ -216,6 +214,12 @@ defaultProject = "project.localhost"
 
 modPrefix' :: String
 modPrefix' = T.unpack modPrefix
+
+matlabDefArgs :: [String]
+matlabDefArgs = [matlabArchSwitch, "-nodisplay", "-nosplash", "-nodesktop", "-r" ]
+
+matlabArchSwitch :: String
+matlabArchSwitch = "-glnxa64"
 
 ffiLoader' :: String
 ffiLoader' = T.unpack ffiLoader

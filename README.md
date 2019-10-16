@@ -38,4 +38,20 @@ There are two utilities in the purescript-native "suite": `pscpp` and `psgo`. Th
 * [`psgo`](https://github.com/andyarvanitis/purescript-native/blob/golang/README-go.md)
 
 
+### Notes on use with MATLAB in Nix
+
+Several nix-shell executions are required to get things working. Hopefully this
+can be improved in the future.
+
+```bash
+export BDIR=`pwd` # do this from a project directory
+nix-shell ci.nix # from justinwoo/easy-purescript-nix
+# Now to get MATLAB working, example here is from FederatedCloud/COBRAContainers
+cd ~/workspace/COBRAContainers/nix/shells/MATLAB && nix-shell
+
+spago build --purs-args "-g corefn" && cd $HOME/workspace/purescript-dynlangs && stack --no-nix-pure exec psmatlab --cwd $BDIR; cd $BDIR
+```
+
+
+
 ---
