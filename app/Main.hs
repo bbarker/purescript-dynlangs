@@ -114,7 +114,7 @@ main = do
                     Run -> "run"
     project <- projectEnv
     -- callProcess "matlab" $ matlabDefArgs ++ [command, T.unpack project </> modPrefix' </> "Main"]
-    callProcess "matlab" $ matlabDefArgs ++ ["run('src/hello.m')"]
+    callProcess "matlab" $ matlabDefArgs ++ [matRunExit "hello.m"]
     return ()
 
 generateCode :: [String] -> FilePath -> FilePath -> IO ()
@@ -226,6 +226,28 @@ ffiLoader' = T.unpack ffiLoader
 
 subdir :: String
 subdir = T.unpack modLabel
+
+matRun :: String -> String
+matRun mCmd = matRunGen $ MatlabOpts False Nothing mCmd
+
+matRunExit :: String -> String
+matRunExit mCmd = matRunGen $ MatlabOpts True Nothing mCmd
+
+-- | Most general MATLAB command runner
+matRunGen :: MatlabOpts -> String
+matRunGen mOpts = "run('" <> (joinPath [mfDir,  mCmd]) <> "')" <> exit'
+  where
+    mfDir = case mFileDir mOpts of
+      Nothing -> "src"
+      Just fdir -> fdir
+    mCmd = matCmd mOpts
+    exit' = if exitAfter mOpts then ";quit" else ""
+
+data MatlabOpts = MatlabOpts {
+  exitAfter :: Bool
+, mFileDir :: Maybe FilePath
+, matCmd :: String
+}
 
 errorNoCorefnFiles :: IO ()
 errorNoCorefnFiles = do
