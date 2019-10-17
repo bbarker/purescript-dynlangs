@@ -45,6 +45,10 @@ import Tests
 
 data Command = Build | Run
 
+-- | Seems to be hardcoded or controlled by `purs` elsewhere
+pursOutputDir :: String
+pursOutputDir = "output"
+
 parseJson :: Text -> Value
 parseJson text
   | Just fileJson <- decode . L.encodeUtf8 $ L.fromStrict text = fileJson
@@ -114,7 +118,7 @@ main = do
                     Run -> "run"
     project <- projectEnv
     -- callProcess "matlab" $ matlabDefArgs ++ [command, T.unpack project </> modPrefix' </> "Main"]
-    callProcess "matlab" $ matlabDefArgs ++ [matRunExit "hello.m"]
+    callProcess "matlab" $ matlabDefArgs ++ [matRunExit $ "Main" </> "Main.m"]
     return ()
 
 generateCode :: [String] -> FilePath -> FilePath -> IO ()
@@ -184,7 +188,7 @@ writeSupportFiles baseOutpath = do
       B.writeFile loaderSource loaderText
 
 implFileName :: Text -> FilePath
-implFileName mn = ((\c -> if c == '.' then '_' else c) <$> T.unpack mn) <> ".go"
+implFileName mn = ((\c -> if c == '.' then '_' else c) <$> T.unpack mn) <> ".m"
 
 projectEnv :: IO Text
 projectEnv = do
@@ -237,11 +241,11 @@ matRunExit mCmd = matRunGen $ MatlabOpts True Nothing mCmd
 matRunGen :: MatlabOpts -> String
 matRunGen mOpts = "run('" <> (joinPath [mfDir,  mCmd]) <> "')" <> exit'
   where
-    mfDir = case mFileDir mOpts of
-      Nothing -> "src"
-      Just fdir -> fdir
-    mCmd = matCmd mOpts
-    exit' = if exitAfter mOpts then ";quit" else ""
+  mfDir = case mFileDir mOpts of
+    Nothing ->  pursOutputDir
+    Just fdir -> fdir
+  mCmd = matCmd mOpts
+  exit' = if exitAfter mOpts then ";quit" else ""
 
 data MatlabOpts = MatlabOpts {
   exitAfter :: Bool
