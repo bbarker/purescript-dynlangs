@@ -110,7 +110,7 @@ ilKeywords =
   , "go"
   , "goto"
   , "if"
-  , "import"
+  , "addpath" -- Not really a keyword, but serves as import
   , "interface"
   , "map"
   , "package"
