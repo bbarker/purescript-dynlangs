@@ -39,6 +39,24 @@ import CodeGen.IL.Optimizer.TCO (tcoLoop)
 
 import qualified Language.PureScript.Constants as C
 
+-- TODO: make these keywords
+psRetVal :: Text
+psRetVal = "psRetVal"
+--
+psArg :: Text
+psArg = "psArg"
+
+
+
+matlabAnon :: [Text] -> Text
+matlabAnon args = "@(" <> (T.intercalate "," args) <> ") "
+
+anonDef :: Text
+anonDef = matlabAnon [psArg]
+
+anonZero :: Text
+anonZero = matlabAnon []
+
 -- TODO (Christoph): Get rid of T.unpack / pack
 
 literals :: (Emit gen) => Pattern PrinterState AST gen
@@ -48,246 +66,242 @@ literals = mkPattern' match'
   match' il = (addMapping' (getSourceSpan il) <>) <$> match il
 
   match :: (Emit gen) => AST -> StateT PrinterState Maybe gen
-  match (NumericLiteral _ n) = return $ emit $ T.pack $ either show show n
-  match (StringLiteral _ s) = return $ emit $ stringLiteral s
-  match (BooleanLiteral _ True) = return $ emit "true"
-  match (BooleanLiteral _ False) = return $ emit "false"
+  match (NumericLiteral _ n) = pure $ emit $ T.pack $ either show show n
+  match (StringLiteral _ s) = pure $ emit $ stringLiteral s
+  match (BooleanLiteral _ True) = pure $ emit "true"
+  match (BooleanLiteral _ False) = pure $ emit "false"
   match (ArrayLiteral _ xs) = mconcat <$> sequence
-    [ return . emit $ arrayType <> "{"
+    [ pure . emit $ arrayType <> "{"
     , intercalate (emit ", ") <$> forM xs prettyPrintIL'
-    , return $ emit "}"
+    , pure $ emit "}"
     ]
-  -- match (ObjectLiteral _ []) = return $ emit "std::initializer_list<std::pair<const string, boxed>>{}"
+  -- match (ObjectLiteral _ []) = pure $ emit "std::initializer_list<std::pair<const string, boxed>>{}"
   match (ObjectLiteral _ ps) = mconcat <$> sequence
-    [ return . emit $ dictType <> "{"
+    [ pure . emit $ dictType <> "{"
     , withIndent $ do
         ils <- forM ps $ \(key, value) -> do
                   value' <- prettyPrintIL' value
-                  return $ objectPropertyToString key <> value'
-        return $ intercalate (emit " ") $ map (<> emit ",") ils
-    , return $ emit "}"
+                  pure $ objectPropertyToString key <> value'
+        pure $ intercalate (emit " ") $ map (<> emit ",") ils
+    , pure $ emit "}"
     ]
     where
     objectPropertyToString :: (Emit gen) => PSString -> gen
     objectPropertyToString s = emit $ stringLiteral s <> ": "
   match (Block _ sts) = mconcat <$> sequence
-    [ return $ emit "{\n"
+    [ pure $ emit "{\n"
     , withIndent $ prettyStatements sts
-    , return $ emit "\n"
+    , pure $ emit "\n"
     , currentIndent
-    , return $ emit "}"
+    , pure $ emit "}"
     ]
-  match (Var _ ident) | ident == C.undefined = return $ emit undefinedName
-  match (Var _ ident) = return $ emit ident
+  match (Var _ ident) | ident == C.undefined = pure $ emit undefinedName
+  match (Var _ ident) = pure $ emit ident
   match (VariableIntroduction _ ident value) = mconcat <$> sequence
-    [ return . emit $ varDecl <> " " <> ident <> " " <> anyType
-    , maybe (return mempty) (fmap (emit " = " <>) . prettyPrintIL') value
+    [ pure . emit $ varDecl <> " " <> ident <> " "
+    , maybe (pure mempty) (fmap (emit " = " <>) . prettyPrintIL') value
     ]
   match (Assignment _ target value) = mconcat <$> sequence
     [ prettyPrintIL' target
-    , return $ emit " = "
+    , pure $ emit " = "
     , prettyPrintIL' value
     ]
   match (App _ val []) = mconcat <$> sequence
-    [ return $ emit "Run("
+    [ pure $ emit "Run("
     , prettyPrintIL' val
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (App _ (StringLiteral _ u) [arg])
     | Just ty <- decodeString u = mconcat <$> sequence
     [ prettyPrintIL' arg
-    , return $ emit ".("
-    , return $ emit ty
-    , return $ emit ")"
+    , pure $ emit ".("
+    , pure $ emit ty
+    , pure $ emit ")"
     ]
   match (App _ (Var _ fn) [arg]) | fn == arrayLengthFn = mconcat <$> sequence
-    [ return $ emit fn
-    , return $ emit "("
+    [ pure $ emit fn
+    , pure $ emit "("
     , prettyPrintIL' arg
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (App _ (Var _ fn) args) | fn == tcoLoop = mconcat <$> sequence
-    [ return $ emit fn
-    , return $ emit "("
+    [ pure $ emit fn
+    , pure $ emit "("
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (App _ (App Nothing (StringLiteral Nothing fnx) [fn@Function{}]) args)
     | Just ftype <- decodeString fnx
     , "Fn" `T.isPrefixOf` ftype = mconcat <$> sequence
     [ prettyPrintIL' fn
-    , return $ emit "("
+    , pure $ emit "("
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (App _ (App Nothing (StringLiteral Nothing fnx) [fn]) args)
     | Just ftype <- decodeString fnx
     , "Fn" `T.isPrefixOf` ftype = mconcat <$> sequence
     [ prettyPrintIL' fn
-    , return $ emit ".("
-    , return $ emit ftype
-    , return $ emit ")("
+    , pure $ emit ".("
+    , pure $ emit ftype
+    , pure $ emit ")("
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match app@(App{})
     | (val, args) <- unApp app []
     , length args > 1
     = mconcat <$> sequence
-    [ return $ emit "Apply("
+    [ pure $ emit "Apply("
     , prettyPrintIL' val
-    , return $ emit ", "
+    , pure $ emit ", "
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (App _ val args) = mconcat <$> sequence
-    [ return $ emit "Apply("
+    [ pure $ emit "Apply("
     , prettyPrintIL' val
-    , return $ emit ", "
+    , pure $ emit ", "
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (Function _ (Just name) [] (Block _ [Return _ ret]))
     | isComplexLiteral ret = mconcat <$> sequence
-    [ return $ emit "\n"
-    , return . emit $ varDecl <> " " <> initName name <> " Once\n"
+    [ pure $ emit "\n"
+    , pure . emit $ varDecl <> " " <> initName name <> " Once\n"
     , prettyPrintIL' $ VariableIntroduction Nothing (valueName name) Nothing
-    , return $ emit "\n\n"
-    , return $ emit "func "
-    , return . emit $ withPrefix name
-    , return . emit $ "() " <> anyType <> " "
-    , return $ emit "{\n"
+    , pure $ emit "\n\n"
+    , pure $ emit anonDef
+    , pure . emit $ withPrefix name
+    , pure . emit $ "() " <> " "
+    , pure $ emit "{\n"
     , withIndent $ do
         indentString <- currentIndent
-        return $ indentString <> (emit $ initName name <> ".Do(func() {\n") <>
+        pure $ indentString <> (emit $ initName name <> ".Do(" <> anonZero <> "\n") <>
                  indentString <> indentString <> (emit $ valueName name <> " = ")
     , withIndent $ do
         case ret of
           Function _ Nothing args body -> mconcat <$> sequence
-            [ return $ emit "func("
-            , return . emit $ intercalate ", " (renderArg anyType <$> args)
-            , return . emit $ ") " <> anyType <> " "
+            [ pure $ emit $ matlabAnon args
             , prettyPrintIL' body
             ]
           _ -> do
             prettyPrintIL' ret
-    , return $ emit "\n"
+    , pure $ emit "\n"
     , withIndent $ do
         indentString <- currentIndent
-        return $ indentString <> (emit $ "})\n" <> "return " <> valueName name <>"\n")
-    , return $ emit "}\n\n"
+        pure $ indentString <> (emit $ "})\n" <> psRetVal <>" = " <> valueName name <>"\n")
+    , pure $ emit "}\n\n"
     ]
   match (Function _ (Just name) [] ret) = mconcat <$> sequence
-    [ return $ emit "func "
-    , return . emit $ withPrefix name
-    , return . emit $ "() " <> anyType <> " "
+    [ pure $ emit "function "
+    , pure . emit $ withPrefix name
+    , pure . emit $ "() " <> " "
     , prettyPrintIL' ret
     ]
   match (Function _ _ args ret) = mconcat <$> sequence
-    [ return $ emit "func("
-    , return . emit $ intercalate ", " (renderArg anyType <$> args)
-    , return . emit $ ") " <> anyType <> " "
+    [ pure $ emit $ matlabAnon args
     , prettyPrintIL' ret
     ]
   match (Indexer _ (Var _ name) (Var _ "")) = mconcat <$> sequence
     [ prettyPrintIL' (Var Nothing $ withPrefix name)
-    , return $ emit "()"
+    , pure $ emit "()"
     ]
   match (Indexer _ (Var _ name) val) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , return $ emit "."
+    , pure $ emit "."
     , prettyPrintIL' (Var Nothing $ withPrefix name)
-    , return $ emit "()"
+    , pure $ emit "()"
     ]
   match (Indexer _ prop@StringLiteral{} val@ObjectLiteral{}) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , return $ emit "["
+    , pure $ emit "["
     , prettyPrintIL' prop
-    , return $ emit "]"
+    , pure $ emit "]"
     ]
   match (Indexer _ prop@StringLiteral{} val) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , return $ emit ".("
-    , return $ emit dictType
-    , return $ emit ")["
+    , pure $ emit ".("
+    , pure $ emit dictType
+    , pure $ emit ")["
     , prettyPrintIL' prop
-    , return $ emit "]"
+    , pure $ emit "]"
     ]
   match (Indexer _ index val@ArrayLiteral{}) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , return $ emit "["
+    , pure $ emit "["
     , prettyPrintIL' index
-    , return $ emit "]"
+    , pure $ emit "]"
     ]
   match (Indexer _ index val) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , return $ emit ".("
-    , return $ emit arrayType
-    , return $ emit ")["
+    , pure $ emit ".("
+    , pure $ emit arrayType
+    , pure $ emit ")["
     , prettyPrintIL' index
-    , return $ emit "]"
+    , pure $ emit "]"
     ]
   match (InstanceOf _ val ty) = mconcat <$> sequence
-    [ return $ emit "Contains("
+    [ pure $ emit "Contains("
     , prettyPrintIL' val
-    , return $ emit ", "
+    , pure $ emit ", "
     , prettyPrintIL' ty
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (While _ cond sts) = mconcat <$> sequence
-    [ return $ emit "for "
+    [ pure $ emit "for "
     , prettyPrintIL' cond
-    , return $ emit " "
+    , pure $ emit " "
     , prettyPrintIL' sts
     ]
   match (For _ ident start end sts) = mconcat <$> sequence
-    [ return $ emit $ "for var " <> ident <> " = "
+    [ pure $ emit $ "for var " <> ident <> " = "
     , prettyPrintIL' start
-    , return $ emit $ "; " <> ident <> " < "
+    , pure $ emit $ "; " <> ident <> " < "
     , prettyPrintIL' end
-    , return $ emit $ "; " <> ident <> "++ "
+    , pure $ emit $ "; " <> ident <> "++ "
     , prettyPrintIL' sts
     ]
   match (ForIn _ ident obj sts) = mconcat <$> sequence
-    [ return $ emit $ "for var " <> ident <> " in "
+    [ pure $ emit $ "for var " <> ident <> " in "
     , prettyPrintIL' obj
-    , return $ emit " "
+    , pure $ emit " "
     , prettyPrintIL' sts
     ]
   match (IfElse _ (Binary _ EqualTo cond@Binary{} (BooleanLiteral Nothing True)) thens elses) = mconcat <$> sequence
-    [ return $ emit "if "
+    [ pure $ emit "if "
     , prettyPrintIL' cond
-    , return $ emit " "
+    , pure $ emit " "
     , prettyPrintIL' thens
-    , maybe (return mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
+    , maybe (pure mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
     ]
   match (IfElse _ (Binary _ EqualTo cond@Binary{} (BooleanLiteral Nothing False)) thens elses) = mconcat <$> sequence
-    [ return $ emit "if !("
+    [ pure $ emit "if !("
     , prettyPrintIL' cond
-    , return $ emit ") "
+    , pure $ emit ") "
     , prettyPrintIL' thens
-    , maybe (return mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
+    , maybe (pure mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
     ]
   match (IfElse _ cond thens elses) = mconcat <$> sequence
-    [ return $ emit "if "
+    [ pure $ emit "if "
     , prettyPrintIL' cond
-    , return $ emit " "
+    , pure $ emit " "
     , prettyPrintIL' thens
-    , maybe (return mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
+    , maybe (pure mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
     ]
   match (Return _ value) = mconcat <$> sequence
-    [ return $ emit "return "
+    [ pure $ emit $ psRetVal <> " = "
     , prettyPrintIL' value
     ]
-  match (ReturnNoResult _) = return . emit $ "return " <> undefinedName
-  -- match (Throw _ _) = return mempty
+  match (ReturnNoResult _) = pure . emit $ psRetVal <> " = " <> undefinedName
+  -- match (Throw _ _) = pure mempty
   match (Throw _ value) = mconcat <$> sequence
-    [ return $ emit "panic("
+    [ pure $ emit "panic("
     , prettyPrintIL' value
-    , return $ emit ")"
+    , pure $ emit ")"
     ]
   match (Comment _ com il) = mconcat <$> sequence
-    [ return $ emit "\n"
+    [ pure $ emit "\n"
     , mconcat <$> forM com comment
     , prettyPrintIL' il
     ]
@@ -296,22 +310,22 @@ literals = mkPattern' match'
   comment :: (Emit gen) => Comment -> StateT PrinterState Maybe gen
   comment (LineComment com) = fmap mconcat $ sequence $
     [ currentIndent
-    , return $ emit "//" <> emit com <> emit "\n"
+    , pure $ emit "//" <> emit com <> emit "\n"
     ]
   comment (BlockComment com) = fmap mconcat $ sequence $
     [ currentIndent
-    , return $ emit "/**\n"
+    , pure $ emit "/**\n"
     ] ++
     map asLine (T.lines com) ++
     [ currentIndent
-    , return $ emit " */\n"
+    , pure $ emit " */\n"
     , currentIndent
     ]
     where
     asLine :: (Emit gen) => Text -> StateT PrinterState Maybe gen
     asLine s = do
       i <- currentIndent
-      return $ i <> emit " * " <> (emit . removeComments) s <> emit "\n"
+      pure $ i <> emit " * " <> (emit . removeComments) s <> emit "\n"
 
     removeComments :: Text -> Text
     removeComments t =
@@ -371,7 +385,7 @@ prettyStatements :: (Emit gen) => [AST] -> StateT PrinterState Maybe gen
 prettyStatements sts = do
   ils <- forM sts prettyPrintIL'
   indentString <- currentIndent
-  return $ intercalate (emit "\n") $ map (indentString <>) ils
+  pure $ intercalate (emit "\n") $ map (indentString <>) ils
 
 -- | Generate a pretty-printed string representing a collection of C++ expressions at the same indentation level
 prettyPrintILWithSourceMaps :: [AST] -> (Text, [SMap])
@@ -449,8 +463,7 @@ implHeaderSource mn imports otherPrefix =
       then "addpath([\"" <> otherPrefix <> "/" <> ffiLoader <> "\"]);\n"
       else "\n") <>
   "addpath([ ...\n" <>
-  (T.intercalate ", ...\n" (formatImport <$> imports)) <> "]);\n\n" <>
-  "type _ = Any\n\n"
+  (T.intercalate ", ...\n" (formatImport <$> imports)) <> "]);\n\n"
   where
   formatImport :: Text -> Text
   formatImport s = "  \"" <> otherPrefix <> "/" <> modPrefix <> "/" <> s <> "\""
@@ -466,31 +479,26 @@ implFooterSource mn foreigns =
           (T.concat $ (\foreign' ->
                         let name = moduleIdentToIL foreign' in
                         varDecl <> " " <> initName name <> " Once\n" <>
-                        varDecl <> " " <> valueName name <> " " <> anyType <> "\n\n" <>
-                        "func " <>
+                        varDecl <> " " <> valueName name <> " " <> "\n\n" <>
+                        "function " <>
                         withPrefix name <>
-                        "() Any { \n" <>
-                        "    " <> initName name <> ".Do(func() {\n" <>
+                        "() { \n" <>
+                        "    " <> initName name <> ".Do(function() {\n" <>
                         "        " <> valueName name <> " = " <>
                                         "Get(" <> foreignDict <> ", " <>
                                             (stringLiteral . mkString $ runIdent foreign') <> ")\n" <>
                         "    })\n" <>
-                        "    return " <> valueName name <> "\n" <>
+                        "    pure " <> valueName name <> "\n" <>
                         "}\n\n") <$> foreigns))) <>
   if mn == "Main" then mainSource else "\n"
   where
   mainSource :: Text
   mainSource = "\
-    \func main() {\n\
-    \    Run(PS__main())\n\
-    \}\n\n\
+    \(PS__main())\n\
     \"
 
 varDecl :: Text
 varDecl = "var"
-
-renderArg :: Text -> Text -> Text
-renderArg decl arg = arg <> " " <> decl
 
 foreignMod :: Text
 foreignMod = "Foreign"

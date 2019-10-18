@@ -214,7 +214,7 @@ goproject :: String
 goproject = "GOPROJECT"
 
 defaultProject :: String
-defaultProject = "project.localhost"
+defaultProject = "./"
 
 modPrefix' :: String
 modPrefix' = T.unpack modPrefix

@@ -160,14 +160,11 @@ ilLiterals =
 withPrefix :: Text -> Text
 withPrefix s = "PS__" <> s
 
-anyType :: Text
-anyType = "Any"
-
 dictType :: Text
 dictType = "Dict"
 
 arrayType :: Text
-arrayType = "[]" <> anyType
+arrayType = "[]"
 
 int :: Text
 int = "int"
