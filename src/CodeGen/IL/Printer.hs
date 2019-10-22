@@ -16,7 +16,7 @@ import Prelude.Compat
 
 import Control.Arrow ((<+>))
 import Control.Monad (forM, mzero)
-import Control.Monad.State (StateT, evalStateT)
+import Control.Monad.State (StateT, evalStateT, get)
 import Control.PatternArrows
 import Data.List (filter, (\\))
 import qualified Control.Arrow as A
@@ -39,14 +39,19 @@ import CodeGen.IL.Optimizer.TCO (tcoLoop)
 
 import qualified Language.PureScript.Constants as C
 
+-- TODO: switch to classy prelude and remove these
+
+tshow :: Show a => a -> Text
+tshow = T.pack . show
+
+-- END switch to classy prelude
+
 -- TODO: make these keywords
 psRetVal :: Text
 psRetVal = "psRetVal"
 --
 psArg :: Text
 psArg = "psArg"
-
-
 
 matlabAnon :: [Text] -> Text
 matlabAnon args = "@(" <> (T.intercalate "," args) <> ") "
@@ -56,6 +61,18 @@ anonDef = matlabAnon [psArg]
 
 anonZero :: Text
 anonZero = matlabAnon []
+
+matlabNullary :: Text -> Text
+matlabNullary name = "function " <> psRetVal <> " = " <> (withPrefix name) <> "()"
+
+matlabFun :: Int -> Text -> [Text] -> Text
+matlabFun _ name [] = matlabNullary name
+matlabFun iLvl name args = "function " <> psRetVal <> iLvlT <> " = "
+  <> (withPrefix name) <> iLvlT <> "(" <> (T.intercalate "," args) <> ") "
+  where
+    iLvlT :: Text
+    iLvlT = if iLvl > 0 then tshow iLvl else ""
+
 
 -- TODO (Christoph): Get rid of T.unpack / pack
 
@@ -180,9 +197,10 @@ literals = mkPattern' match'
         pure $ indentString <> (emit $ initName name <> ".Do(" <> anonZero <> "\n") <>
                  indentString <> indentString <> (emit $ valueName name <> " = ")
     , withIndent $ do
+        indentLvl <- indent <$> get
         case ret of
           Function _ Nothing args body -> mconcat <$> sequence
-            [ pure $ emit $ matlabAnon args
+            [ pure $ emit $ matlabFun indentLvl name args
             , prettyPrintIL' body
             ]
           _ -> do
@@ -190,7 +208,7 @@ literals = mkPattern' match'
     , pure $ emit "\n"
     , withIndent $ do
         indentString <- currentIndent
-        pure $ indentString <> (emit $ "})\n" <> psRetVal <>" = " <> valueName name <>"\n")
+        pure $ indentString <> (emit $ "})\n" <> valueName name <>"\n")
     , pure $ emit "}\n\n"
     ]
   match (Function _ (Just name) [] ret) = mconcat <$> sequence
@@ -200,7 +218,9 @@ literals = mkPattern' match'
     , prettyPrintIL' ret
     ]
   match (Function _ _ args ret) = mconcat <$> sequence
-    [ pure $ emit $ matlabAnon args
+    [ withIndent $ do
+        indentLvl <- indent <$> get
+        pure $ emit $ matlabFun indentLvl "nested" args
     , prettyPrintIL' ret
     ]
   match (Indexer _ (Var _ name) (Var _ "")) = mconcat <$> sequence
@@ -290,10 +310,10 @@ literals = mkPattern' match'
     , maybe (pure mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
     ]
   match (Return _ value) = mconcat <$> sequence
-    [ pure $ emit $ psRetVal <> " = "
+    [ pure $ emit $ ""
     , prettyPrintIL' value
     ]
-  match (ReturnNoResult _) = pure . emit $ psRetVal <> " = " <> undefinedName
+  match (ReturnNoResult _) = pure . emit $ "" <> undefinedName
   -- match (Throw _ _) = pure mempty
   match (Throw _ value) = mconcat <$> sequence
     [ pure $ emit "panic("
