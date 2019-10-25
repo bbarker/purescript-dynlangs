@@ -68,7 +68,7 @@ matlabNullary name = "function " <> psRetVal <> " = " <> (withPrefix name) <> "(
 matlabFun :: Int -> Text -> [Text] -> Text
 matlabFun _ name [] = matlabNullary name
 matlabFun iLvl name args = "function " <> psRetVal <> iLvlT <> " = "
-  <> (withPrefix name) <> iLvlT <> "(" <> (T.intercalate "," args) <> ") "
+  <> (withPrefix name) <> iLvlT <> "(" <> (T.intercalate "," args) <> ")"
   where
     iLvlT :: Text
     iLvlT = if iLvl > 0 then tshow iLvl else ""
@@ -106,11 +106,11 @@ literals = mkPattern' match'
     objectPropertyToString :: (Emit gen) => PSString -> gen
     objectPropertyToString s = emit $ stringLiteral s <> ": "
   match (Block _ sts) = mconcat <$> sequence
-    [ pure $ emit "{\n"
+    [ pure $ emit "\n"
     , withIndent $ prettyStatements sts
     , pure $ emit "\n"
     , currentIndent
-    , pure $ emit "}"
+    , pure $ emit "end"
     ]
   match (Var _ ident) | ident == C.undefined = pure $ emit undefinedName
   match (Var _ ident) = pure $ emit ident
@@ -190,8 +190,8 @@ literals = mkPattern' match'
     , pure $ emit "\n\n"
     , pure $ emit anonDef
     , pure . emit $ withPrefix name
-    , pure . emit $ "() " <> " "
-    , pure $ emit "{\n"
+    , pure . emit $ "()"
+    , pure $ emit "\n"
     , withIndent $ do
         indentString <- currentIndent
         pure $ indentString <> (emit $ initName name <> ".Do(" <> anonZero <> "\n") <>
@@ -209,12 +209,12 @@ literals = mkPattern' match'
     , withIndent $ do
         indentString <- currentIndent
         pure $ indentString <> (emit $ "})\n" <> valueName name <>"\n")
-    , pure $ emit "}\n\n"
+    , pure $ emit "end\n\n"
     ]
   match (Function _ (Just name) [] ret) = mconcat <$> sequence
-    [ pure $ emit "function "
+    [ pure $ emit $ "function " <> psRetVal <> " = "
     , pure . emit $ withPrefix name
-    , pure . emit $ "() " <> " "
+    , pure . emit $ "()"
     , prettyPrintIL' ret
     ]
   match (Function _ _ args ret) = mconcat <$> sequence
@@ -502,19 +502,19 @@ implFooterSource mn foreigns =
                         varDecl <> " " <> valueName name <> " " <> "\n\n" <>
                         "function " <>
                         withPrefix name <>
-                        "() { \n" <>
+                        "()\n" <>
                         "    " <> initName name <> ".Do(function() {\n" <>
                         "        " <> valueName name <> " = " <>
                                         "Get(" <> foreignDict <> ", " <>
                                             (stringLiteral . mkString $ runIdent foreign') <> ")\n" <>
                         "    })\n" <>
                         "    pure " <> valueName name <> "\n" <>
-                        "}\n\n") <$> foreigns))) <>
+                        "end\n\n") <$> foreigns))) <>
   if mn == "Main" then mainSource else "\n"
   where
   mainSource :: Text
   mainSource = "\
-    \(PS__main())\n\
+    \PS__main()\n\
     \"
 
 varDecl :: Text
