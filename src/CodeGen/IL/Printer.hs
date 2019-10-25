@@ -197,7 +197,7 @@ literals = mkPattern' match'
         pure $ indentString <> (emit $ initName name <> ".Do(" <> anonZero <> "\n") <>
                  indentString <> indentString <> (emit $ valueName name <> " = ")
     , withIndent $ do
-        indentLvl <- indent <$> get
+        indentLvl <- indentLevel
         case ret of
           Function _ Nothing args body -> mconcat <$> sequence
             [ pure $ emit $ matlabFun indentLvl name args
@@ -219,7 +219,7 @@ literals = mkPattern' match'
     ]
   match (Function _ _ args ret) = mconcat <$> sequence
     [ withIndent $ do
-        indentLvl <- indent <$> get
+        indentLvl <- indentLevel
         pure $ emit $ matlabFun indentLvl "nested" args
     , prettyPrintIL' ret
     ]
@@ -541,3 +541,9 @@ initName s = "ₒ" <> s
 
 valueName :: Text -> Text
 valueName s = "ₐ" <> s
+
+indentLevel :: StateT PrinterState Maybe Int
+indentLevel = do
+  current <- indent <$> get
+  pure $ current `div` blockIndent
+
