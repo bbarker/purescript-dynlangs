@@ -483,11 +483,15 @@ implHeaderSource mn imports otherPrefix =
       then "addpath([\"" <> otherPrefix <> "/" <> ffiLoader <> "\"]);\n"
       else "\n") <>
   "addpath([ ...\n" <>
-  (T.intercalate ", ...\n" (formatImport <$> imports)) <> "]);\n\n"
+  (T.intercalate ", ...\n" (formatImport <$> imports)) <> "]);\n\n" <>
+  if mn == "Main" then mainSource else "\n"
   where
   formatImport :: Text -> Text
   formatImport s = "  \"" <> otherPrefix <> "/" <> modPrefix <> "/" <> s <> "\""
-
+  mainSource :: Text
+  mainSource = "\
+    \PS__main();\n\
+    \"
 
 implFooterSource :: Text -> [Ident] -> Text
 implFooterSource mn foreigns =
@@ -509,13 +513,7 @@ implFooterSource mn foreigns =
                                             (stringLiteral . mkString $ runIdent foreign') <> ")\n" <>
                         "    })\n" <>
                         "    pure " <> valueName name <> "\n" <>
-                        "end\n\n") <$> foreigns))) <>
-  if mn == "Main" then mainSource else "\n"
-  where
-  mainSource :: Text
-  mainSource = "\
-    \PS__main()\n\
-    \"
+                        "end\n\n") <$> foreigns)))
 
 varDecl :: Text
 varDecl = "var"
