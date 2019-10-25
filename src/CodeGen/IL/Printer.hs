@@ -47,9 +47,6 @@ tshow = T.pack . show
 -- END switch to classy prelude
 
 -- TODO: make these keywords
-psRetVal :: Text
-psRetVal = "psRetVal"
---
 psArg :: Text
 psArg = "psArg"
 
@@ -63,15 +60,12 @@ anonZero :: Text
 anonZero = matlabAnon []
 
 matlabNullary :: Text -> Text
-matlabNullary name = "function " <> psRetVal <> " = " <> (withPrefix name) <> "()"
+matlabNullary name = "function " <> psRetVal 0 <> " = " <> (withPrefix name) <> "()"
 
 matlabFun :: Int -> Text -> [Text] -> Text
 matlabFun _ name [] = matlabNullary name
-matlabFun iLvl name args = "function " <> psRetVal <> iLvlT <> " = "
-  <> (withPrefix name) <> iLvlT <> "(" <> (T.intercalate "," args) <> ")"
-  where
-    iLvlT :: Text
-    iLvlT = if iLvl > 0 then tshow iLvl else ""
+matlabFun iLvl name args = "function " <> psRetVal iLvl <> " = "
+  <> (withPrefix name) <> indentLvlTxt iLvl <> "(" <> (T.intercalate "," args) <> ")"
 
 
 -- TODO (Christoph): Get rid of T.unpack / pack
@@ -212,7 +206,7 @@ literals = mkPattern' match'
     , pure $ emit "end\n\n"
     ]
   match (Function _ (Just name) [] ret) = mconcat <$> sequence
-    [ pure $ emit $ "function " <> psRetVal <> " = "
+    [ pure $ emit $ "function " <> psRetVal 0 <> " = "
     , pure . emit $ withPrefix name
     , pure . emit $ "()"
     , prettyPrintIL' ret
@@ -222,6 +216,11 @@ literals = mkPattern' match'
         indentLvl <- indentLevel
         pure $ emit $ matlabFun indentLvl "nested" args
     , prettyPrintIL' ret
+    , withIndent $ do
+        indentLvl <- indentLevel
+        indentString <- currentIndent
+        pure $ (emit $ "\n") <> indentString <>
+          (emit $ (psRetVal $ indentLvl - 1) <> " = " <> matlabAnon args <> ";")
     ]
   match (Indexer _ (Var _ name) (Var _ "")) = mconcat <$> sequence
     [ prettyPrintIL' (Var Nothing $ withPrefix name)
@@ -547,3 +546,8 @@ indentLevel = do
   current <- indent <$> get
   pure $ current `div` blockIndent
 
+indentLvlTxt :: Int -> Text
+indentLvlTxt iLvl = if iLvl > 0 then tshow iLvl else ""
+
+psRetVal :: Int -> Text
+psRetVal iLvl = "psRetVal" <> indentLvlTxt iLvl
