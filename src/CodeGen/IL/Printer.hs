@@ -51,7 +51,7 @@ psArg :: Text
 psArg = "psArg"
 
 matlabAnon :: [Text] -> Text
-matlabAnon args = "@(" <> (T.intercalate "," args) <> ") "
+matlabAnon args = "@(" <> (T.intercalate "," args) <> ")"
 
 anonDef :: Text
 anonDef = matlabAnon [psArg]
@@ -66,6 +66,10 @@ matlabFun :: Int -> Text -> [Text] -> Text
 matlabFun _ name [] = matlabNullary name
 matlabFun iLvl name args = "function " <> psRetVal iLvl <> " = "
   <> (withPrefix name) <> indentLvlTxt iLvl <> "(" <> (T.intercalate "," args) <> ")"
+
+matlabCall :: Int -> Text -> [Text] -> Text
+matlabCall iLvl name args = (withPrefix name) <> indentLvlTxt iLvl <>
+  "(" <> (T.intercalate "," args) <> ")"
 
 
 -- TODO (Christoph): Get rid of T.unpack / pack
@@ -214,13 +218,14 @@ literals = mkPattern' match'
   match (Function _ _ args ret) = mconcat <$> sequence
     [ withIndent $ do
         indentLvl <- indentLevel
-        pure $ emit $ matlabFun indentLvl "nested" args
+        pure $ emit $ matlabFun indentLvl innerFunTxt args
     , prettyPrintIL' ret
     , withIndent $ do
         indentLvl <- indentLevel
-        indentString <- currentIndent
-        pure $ (emit $ "\n") <> indentString <>
-          (emit $ (psRetVal $ indentLvl - 1) <> " = " <> matlabAnon args <> ";")
+        let indentText = T.replicate (blockIndent * (indentLvl - 1)) " "
+        pure $ emit $ "\n" <> indentText <>
+          (psRetVal $ indentLvl - 1) <> " = " <> matlabAnon args <> " " <>
+          matlabCall indentLvl innerFunTxt args <> ";"
     ]
   match (Indexer _ (Var _ name) (Var _ "")) = mconcat <$> sequence
     [ prettyPrintIL' (Var Nothing $ withPrefix name)
@@ -550,4 +555,7 @@ indentLvlTxt :: Int -> Text
 indentLvlTxt iLvl = if iLvl > 0 then tshow iLvl else ""
 
 psRetVal :: Int -> Text
-psRetVal iLvl = "psRetVal" <> indentLvlTxt iLvl
+psRetVal iLvl = "psRetVal" <> indentLvlTxt (iLvl - 1)
+
+innerFunTxt :: Text
+innerFunTxt = "nested"
