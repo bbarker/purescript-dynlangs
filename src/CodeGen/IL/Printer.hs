@@ -314,7 +314,12 @@ literals = mkPattern' match'
     , maybe (pure mempty) (fmap (emit " else " <>) . prettyPrintIL') elses
     ]
   match (Return _ value) = mconcat <$> sequence
-    [ pure $ emit $ ""
+    [ case value of
+        (Function _ _ _ _) -> pure $ emit $ ""
+        _ -> withIndent $ do
+          indentLvl <- indentLevel
+          -- indentString <- currentIndent
+          pure $ emit $ psRetVal indentLvl <> " = "
     , prettyPrintIL' value
     ]
   match (ReturnNoResult _) = pure . emit $ "" <> undefinedName
