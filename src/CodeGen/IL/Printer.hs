@@ -129,9 +129,6 @@ literals = mkPattern' match'
   match (App _ (StringLiteral _ u) [arg])
     | Just ty <- decodeString u = mconcat <$> sequence
     [ prettyPrintIL' arg
-    , pure $ emit ".("
-    , pure $ emit ty
-    , pure $ emit ")"
     ]
   match (App _ (Var _ fn) [arg]) | fn == arrayLengthFn = mconcat <$> sequence
     [ pure $ emit fn
@@ -157,9 +154,7 @@ literals = mkPattern' match'
     | Just ftype <- decodeString fnx
     , "Fn" `T.isPrefixOf` ftype = mconcat <$> sequence
     [ prettyPrintIL' fn
-    , pure $ emit ".("
-    , pure $ emit ftype
-    , pure $ emit ")("
+    , pure $ emit "("
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
     , pure $ emit ")"
     ]
@@ -245,9 +240,7 @@ literals = mkPattern' match'
     ]
   match (Indexer _ prop@StringLiteral{} val) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , pure $ emit ".("
-    , pure $ emit dictType
-    , pure $ emit ")["
+    , pure $ emit "["
     , prettyPrintIL' prop
     , pure $ emit "]"
     ]
@@ -259,9 +252,7 @@ literals = mkPattern' match'
     ]
   match (Indexer _ index val) = mconcat <$> sequence
     [ prettyPrintIL' val
-    , pure $ emit ".("
-    , pure $ emit arrayType
-    , pure $ emit ")["
+    , pure $ emit "["
     , prettyPrintIL' index
     , pure $ emit "]"
     ]
@@ -320,7 +311,7 @@ literals = mkPattern' match'
           indentLvl <- indentLevel
           mconcat <$> sequence
             [
-              pure $ emit $ psRetVal indentLvl <> " = "
+              pure $ emit $ psRetVal (indentLvl - 1) <> " = "
             , prettyPrintIL' value
             , pure $ emit ";"
             ]
