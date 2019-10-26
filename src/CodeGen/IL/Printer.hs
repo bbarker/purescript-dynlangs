@@ -481,16 +481,16 @@ interfaceSource _ _ _ = ""
 implHeaderSource :: Text -> [Text] -> Text -> Text
 implHeaderSource mn imports otherPrefix =
   -- TODO: intercalate paths with 'filesep'?
-  "addpath([\"" <> runtime <> "\"]);\n" <>
+  "addpath([\'" <> runtime <> "\']);\n" <>
   (if mn == "Main"
-      then "addpath([\"" <> otherPrefix <> "/" <> ffiLoader <> "\"]);\n"
+      then "addpath([\'" <> otherPrefix <> "/" <> ffiLoader <> "\']);\n"
       else "\n") <>
   "addpath([ ...\n" <>
   (T.intercalate ", ...\n" (formatImport <$> imports)) <> "]);\n\n" <>
   if mn == "Main" then mainSource else "\n"
   where
   formatImport :: Text -> Text
-  formatImport s = "  \"" <> otherPrefix <> "/" <> modPrefix <> "/" <> s <> "\""
+  formatImport s = "  \'" <> otherPrefix <> "/" <> modPrefix <> "/" <> s <> "\'"
   mainSource :: Text
   mainSource = "\
     \PS__main();\n\
