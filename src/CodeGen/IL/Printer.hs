@@ -113,7 +113,7 @@ literals = mkPattern' match'
   match (Var _ ident) | ident == C.undefined = pure $ emit undefinedName
   match (Var _ ident) = pure $ emit ident
   match (VariableIntroduction _ ident value) = mconcat <$> sequence
-    [ pure . emit $ varDecl <> " " <> ident <> " "
+    [ pure . emit $ ident
     , maybe (pure mempty) (fmap (emit " = " <>) . prettyPrintIL') value
     ]
   match (Assignment _ target value) = mconcat <$> sequence
@@ -178,7 +178,7 @@ literals = mkPattern' match'
   match (Function _ (Just name) [] (Block _ [Return _ ret]))
     | isComplexLiteral ret = mconcat <$> sequence
     [ pure $ emit "\n"
-    , pure . emit $ varDecl <> " " <> initName name <> " Once\n"
+    , pure . emit $ initName name <> " Once\n"
     , prettyPrintIL' $ VariableIntroduction Nothing (valueName name) Nothing
     , pure $ emit "\n\n"
     , pure $ emit anonDef
@@ -270,7 +270,7 @@ literals = mkPattern' match'
     , prettyPrintIL' sts
     ]
   match (For _ ident start end sts) = mconcat <$> sequence
-    [ pure $ emit $ "for var " <> ident <> " = "
+    [ pure $ emit $ "for " <> ident <> " = "
     , prettyPrintIL' start
     , pure $ emit $ "; " <> ident <> " < "
     , prettyPrintIL' end
@@ -278,7 +278,7 @@ literals = mkPattern' match'
     , prettyPrintIL' sts
     ]
   match (ForIn _ ident obj sts) = mconcat <$> sequence
-    [ pure $ emit $ "for var " <> ident <> " in "
+    [ pure $ emit $ "for " <> ident <> " in "
     , prettyPrintIL' obj
     , pure $ emit " "
     , prettyPrintIL' sts
@@ -502,11 +502,11 @@ implFooterSource mn foreigns =
   (if null foreigns
     then ""
     else ("// Foreign values\n\n" <>
-          "var " <> foreignDict <> " = "<> foreignMod <> "(\"" <> mn <> "\")\n\n" <>
+          foreignDict <> " = "<> foreignMod <> "(\"" <> mn <> "\")\n\n" <>
           (T.concat $ (\foreign' ->
                         let name = moduleIdentToIL foreign' in
-                        varDecl <> " " <> initName name <> " Once\n" <>
-                        varDecl <> " " <> valueName name <> " " <> "\n\n" <>
+                        initName name <> " Once\n" <>
+                        valueName name <> " " <> "\n\n" <>
                         "function " <>
                         withPrefix name <>
                         "()\n" <>
@@ -517,9 +517,6 @@ implFooterSource mn foreigns =
                         "    })\n" <>
                         "    pure " <> valueName name <> "\n" <>
                         "end\n\n") <$> foreigns)))
-
-varDecl :: Text
-varDecl = "var"
 
 foreignMod :: Text
 foreignMod = "Foreign"
