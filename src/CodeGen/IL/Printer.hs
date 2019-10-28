@@ -115,11 +115,13 @@ literals = mkPattern' match'
   match (VariableIntroduction _ ident value) = mconcat <$> sequence
     [ pure . emit $ ident
     , maybe (pure mempty) (fmap (emit " = " <>) . prettyPrintIL') value
+    , pure $ emit ";"
     ]
   match (Assignment _ target value) = mconcat <$> sequence
     [ prettyPrintIL' target
     , pure $ emit " = "
     , prettyPrintIL' value
+    , pure $ emit ";"
     ]
   match (App _ val []) = mconcat <$> sequence
     [ pure $ emit "Run("
@@ -162,15 +164,15 @@ literals = mkPattern' match'
     | (val, args) <- unApp app []
     , length args > 1
     = mconcat <$> sequence
-    [ pure $ emit "Apply("
-    , prettyPrintIL' val
+    [ pure $ emit "Apply(@"
+    , pure $ emit $ fst $ T.breakOn "()" $ prettyPrintIL [val]
     , pure $ emit ", "
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
     , pure $ emit ")"
     ]
   match (App _ val args) = mconcat <$> sequence
-    [ pure $ emit "Apply("
-    , prettyPrintIL' val
+    [ pure $ emit "Apply(@"
+    , pure $ emit $ fst $ T.breakOn "()" $ prettyPrintIL [val]
     , pure $ emit ", "
     , intercalate (emit ", ") <$> forM args prettyPrintIL'
     , pure $ emit ")"
