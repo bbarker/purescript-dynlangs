@@ -482,6 +482,7 @@ interfaceSource _ _ _ = ""
 
 implHeaderSource :: Text -> [Text] -> Text -> Text
 implHeaderSource mn imports otherPrefix =
+  cdProjDirTxt <>
   -- TODO: intercalate paths with 'filesep'?
   "addpath([\'" <> runtime <> "\']);\n" <>
   (if mn == "Main"
@@ -527,13 +528,13 @@ foreignDict :: Text
 foreignDict = "foreign"
 
 modLabel :: Text
-modLabel = "purescript-native"
+modLabel = "purescript-matlab"
 
 modPrefix :: Text
 modPrefix = modLabel <> "/output"
 
 runtime :: Text
-runtime = "github.com/" <> modLabel <> "/go-runtime"
+runtime =  "./" <> modLabel <> "/src/Runtime"
 
 ffiLoader :: Text
 ffiLoader = modLabel <> "/ffi-loader"
@@ -557,3 +558,10 @@ psRetVal iLvl = "psRetVal" <> indentLvlTxt (iLvl - 1)
 
 innerFunTxt :: Text
 innerFunTxt = "nested"
+
+cdProjDirTxt :: Text
+cdProjDirTxt = "mFilePath = mfilename ( 'fullpath' );\n\
+  \[mFileDir,~,~] = fileparts(mFilePath);\n\
+  \projDir = fullfile(mFileDir, '..', '..');\n\
+  \disp(projDir);\n\
+  \cd(projDir);\n"
