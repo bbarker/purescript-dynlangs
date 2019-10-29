@@ -174,10 +174,8 @@ writeSupportFiles baseOutpath = do
       let project' = T.unpack project
           outputdir' = tail $ T.unpack outputdir
           modText' = T.replace "$PROJECT" project $ T.decodeUtf8 modText
-          replaceLoader = project' </> ffiLoader' <> "=" <> currentDir </> subdir
           replaceOutput = project' </> modPrefix' <> "=" <> currentDir </> outputdir'
       B.writeFile goModSource $ T.encodeUtf8 modText'
-      -- callProcess "matlab" ["mod", "edit", "-replace", replaceLoader]
       -- callProcess "matlab" ["mod", "edit", "-replace", replaceOutput]
       -- callProcess "matlab" ["clean", "-modcache"]
   writeLoaderFile :: FilePath -> B.ByteString -> IO ()
@@ -224,9 +222,6 @@ matlabDefArgs = [matlabArchSwitch, "-nodisplay", "-nosplash", "-nodesktop", "-r"
 
 matlabArchSwitch :: String
 matlabArchSwitch = "-glnxa64"
-
-ffiLoader' :: String
-ffiLoader' = T.unpack ffiLoader
 
 subdir :: String
 subdir = T.unpack modLabel

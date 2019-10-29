@@ -9,7 +9,6 @@ module CodeGen.IL.Printer
   , isLiteral
   , modLabel
   , modPrefix
-  , ffiLoader
   ) where
 
 import Prelude.Compat
@@ -482,14 +481,11 @@ interfaceSource _ _ _ = ""
 
 implHeaderSource :: Text -> [Text] -> Text -> Text
 implHeaderSource mn imports otherPrefix =
-  cdProjDirTxt <>
   -- TODO: intercalate paths with 'filesep'?
-  "addpath([\'" <> runtime <> "\']);\n" <>
-  (if mn == "Main"
-      then "addpath([\'" <> otherPrefix <> "/" <> ffiLoader <> "\']);\n"
-      else "\n") <>
-  "addpath([ ...\n" <>
-  (T.intercalate ", ...\n" (formatImport <$> imports)) <> "]);\n\n" <>
+  (if mn == "Main" then cdProjDirTxt  else "") <>
+  "addpath(\'" <> runtime <> "\');\n" <>
+  "addpath( ...\n" <>
+  (T.intercalate ", ...\n" (formatImport <$> imports)) <> ");\n\n" <>
   if mn == "Main" then mainSource else "\n"
   where
   formatImport :: Text -> Text
@@ -498,6 +494,7 @@ implHeaderSource mn imports otherPrefix =
   mainSource = "\
     \PS__main();\n\
     \"
+
 
 implFooterSource :: Text -> [Ident] -> Text
 implFooterSource mn foreigns =
@@ -531,13 +528,10 @@ modLabel :: Text
 modLabel = "purescript-matlab"
 
 modPrefix :: Text
-modPrefix = modLabel <> "/output"
+modPrefix = "output"
 
 runtime :: Text
 runtime =  "./" <> modLabel <> "/src/Runtime"
-
-ffiLoader :: Text
-ffiLoader = modLabel <> "/ffi-loader"
 
 initName :: Text -> Text
 initName s = "ₒ" <> s
