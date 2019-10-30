@@ -336,23 +336,14 @@ literals = mkPattern' match'
   comment :: (Emit gen) => Comment -> StateT PrinterState Maybe gen
   comment (LineComment com) = fmap mconcat $ sequence $
     [ currentIndent
-    , pure $ emit "//" <> emit com <> emit "\n"
+    , pure $ emit "%" <> emit com <> emit "\n"
     ]
-  comment (BlockComment com) = fmap mconcat $ sequence $
-    [ currentIndent
-    , pure $ emit "/**\n"
-    ] ++
-    map asLine (T.lines com) ++
-    [ currentIndent
-    , pure $ emit " */\n"
-    , currentIndent
-    ]
+  comment (BlockComment com) = fmap mconcat $ sequence $ map asLine (T.lines com)
     where
     asLine :: (Emit gen) => Text -> StateT PrinterState Maybe gen
     asLine s = do
       i <- currentIndent
-      pure $ i <> emit " * " <> (emit . removeComments) s <> emit "\n"
-
+      pure $ i <> emit "% " <> (emit . removeComments) s <> emit "\n"
     removeComments :: Text -> Text
     removeComments t =
       case T.stripPrefix "*/" t of
