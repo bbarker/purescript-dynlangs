@@ -76,7 +76,7 @@ nameIsILBuiltIn name =
     [ "Any"
     , "Apply"
     , "Contains"
-    , "Dict"
+    , "struct"
     , "EffFn"
     , "Fn"
     , "Foreign"
@@ -161,7 +161,7 @@ withPrefix :: Text -> Text
 withPrefix s = "PS__" <> s
 
 dictType :: Text
-dictType = "Dict"
+dictType = "struct"
 
 arrayType :: Text
 arrayType = "[]"

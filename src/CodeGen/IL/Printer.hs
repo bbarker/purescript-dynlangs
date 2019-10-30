@@ -91,17 +91,17 @@ literals = mkPattern' match'
     ]
   -- match (ObjectLiteral _ []) = pure $ emit "std::initializer_list<std::pair<const string, boxed>>{}"
   match (ObjectLiteral _ ps) = mconcat <$> sequence
-    [ pure . emit $ dictType <> "{"
+    [ pure . emit $ dictType <> "("
     , withIndent $ do
         ils <- forM ps $ \(key, value) -> do
                   value' <- prettyPrintIL' value
                   pure $ objectPropertyToString key <> value'
-        pure $ intercalate (emit " ") $ map (<> emit ",") ils
-    , pure $ emit "}"
+        pure $ intercalate (emit ", ") ils
+    , pure $ emit ")"
     ]
     where
     objectPropertyToString :: (Emit gen) => PSString -> gen
-    objectPropertyToString s = emit $ stringLiteral s <> ": "
+    objectPropertyToString s = emit $ stringLiteral s <> ", "
   match (Block _ sts) = mconcat <$> sequence
     [ pure $ emit "\n"
     , withIndent $ prettyStatements sts
@@ -234,16 +234,18 @@ literals = mkPattern' match'
     , pure $ emit "()"
     ]
   match (Indexer _ prop@StringLiteral{} val@ObjectLiteral{}) = mconcat <$> sequence
-    [ prettyPrintIL' val
-    , pure $ emit "["
+    [ pure $ emit "getfield("
+    , prettyPrintIL' val
+    , pure $ emit ", "
     , prettyPrintIL' prop
-    , pure $ emit "]"
+    , pure $ emit ")"
     ]
   match (Indexer _ prop@StringLiteral{} val) = mconcat <$> sequence
-    [ prettyPrintIL' val
-    , pure $ emit "["
+    [ pure $ emit "getfield("
+    , prettyPrintIL' val
+    , pure $ emit ", "
     , prettyPrintIL' prop
-    , pure $ emit "]"
+    , pure $ emit ")"
     ]
   match (Indexer _ index val@ArrayLiteral{}) = mconcat <$> sequence
     [ prettyPrintIL' val
@@ -461,7 +463,7 @@ stringLiteral :: PSString -> Text
 stringLiteral pss | Just s <- decodeString pss = stringLiteral' s
   where
   stringLiteral' :: Text -> Text
-  stringLiteral' s = "\"" <> T.concatMap encodeChar s <> "\""
+  stringLiteral' s = "'" <> T.concatMap encodeChar s <> "'"
   encodeChar :: Char -> Text
   encodeChar '\0' = "\\x00"
   encodeChar '\b' = "\\b"
