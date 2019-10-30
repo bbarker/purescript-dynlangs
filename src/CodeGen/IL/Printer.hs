@@ -71,6 +71,16 @@ matlabCall iLvl name args = (withPrefix name) <> indentLvlTxt iLvl <>
   "(" <> (T.intercalate "," args) <> ")"
 
 
+matlabApply :: Emit gen => AST -> [AST] -> [StateT PrinterState Maybe gen]
+matlabApply val args =
+  [ pure $ emit "Apply(@"
+  , pure $ emit $ fst $ T.breakOn "()" $ prettyPrintIL [val]
+  , pure $ emit ", "
+  , intercalate (emit ", ") <$> forM args prettyPrintIL'
+  , pure $ emit ")"
+  ]
+
+
 -- TODO (Christoph): Get rid of T.unpack / pack
 
 literals :: (Emit gen) => Pattern PrinterState AST gen
@@ -162,20 +172,8 @@ literals = mkPattern' match'
   match app@(App{})
     | (val, args) <- unApp app []
     , length args > 1
-    = mconcat <$> sequence
-    [ pure $ emit "Apply(@"
-    , pure $ emit $ fst $ T.breakOn "()" $ prettyPrintIL [val]
-    , pure $ emit ", "
-    , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , pure $ emit ")"
-    ]
-  match (App _ val args) = mconcat <$> sequence
-    [ pure $ emit "Apply(@"
-    , pure $ emit $ fst $ T.breakOn "()" $ prettyPrintIL [val]
-    , pure $ emit ", "
-    , intercalate (emit ", ") <$> forM args prettyPrintIL'
-    , pure $ emit ")"
-    ]
+    = mconcat <$> sequence (matlabApply val args)
+  match (App _ val args) = mconcat <$> sequence (matlabApply val args)
   match (Function _ (Just name) [] (Block _ [Return _ ret]))
     | isComplexLiteral ret = mconcat <$> sequence
     [ pure $ emit "\n"
@@ -413,7 +411,7 @@ prettyPrintILWithSourceMaps il =
 prettyPrintIL :: [AST] -> Text
 prettyPrintIL = maybe (internalError "Incomplete pattern") runPlainString . flip evalStateT (PrinterState 0) . prettyStatements
 
--- | Generate an indented, pretty-printed string representing a C++ expression
+-- | Generate an indented, pretty-printed string representing a MATLAB expression
 prettyPrintIL' :: (Emit gen) => AST -> StateT PrinterState Maybe gen
 prettyPrintIL' = A.runKleisli $ runPattern matchValue
   where
@@ -545,6 +543,10 @@ psRetVal iLvl = "psRetVal" <> indentLvlTxt (iLvl - 1)
 
 innerFunTxt :: Text
 innerFunTxt = "nested"
+
+-- | Used for debugging the AST, mostly; shows the constructor name
+getDConst :: Show a => a -> Text
+getDConst = T.pack . head . words . show
 
 cdProjDirTxt :: Text
 cdProjDirTxt = "mFilePath = mfilename ( 'fullpath' );\n\
