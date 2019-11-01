@@ -17,7 +17,7 @@ import Control.Arrow ((<+>))
 import Control.Monad (forM, mzero)
 import Control.Monad.State (StateT, evalStateT, get)
 import Control.PatternArrows
-import Data.List (filter, (\\))
+import Data.List (filter, intersperse, (\\))
 import qualified Control.Arrow as A
 
 import Data.Maybe (fromMaybe)
@@ -70,16 +70,26 @@ matlabCall :: Int -> Text -> [Text] -> Text
 matlabCall iLvl name args = (withPrefix name) <> indentLvlTxt iLvl <>
   "(" <> (T.intercalate "," args) <> ")"
 
-
 matlabApply :: Emit gen => AST -> [AST] -> [StateT PrinterState Maybe gen]
-matlabApply val args =
+matlabApply val args = -- (intersperse (pure $ emit "\n") (prettyPrintIL' <$> exFuns)) ++
   [ pure $ emit "Apply(@"
   , pure $ emit $ fst $ T.breakOn "()" $ prettyPrintIL [val]
   , pure $ emit ", "
+  -- , intercalate (emit ", ") <$> forM callArgs prettyPrintIL'
   , intercalate (emit ", ") <$> forM args prettyPrintIL'
   , pure $ emit ")"
   ]
+  -- where (exFuns, callArgs) = extractFuns args
 
+-- | Extracts functions and replaces them with function handles
+extractFuns :: [AST] -> ([AST], [AST])
+extractFuns asts = (funAsts, filteredAsts)
+  where
+    filteredAsts = (\(ix, ast) -> case ast of
+      ast@(Function _ nameMay _ _) -> Var Nothing $ "@" <> applyFunTxt nameMay <> tshow ix
+      _ -> ast
+      ) <$> (zip [1..] asts)
+    funAsts = filter isFun asts
 
 -- TODO (Christoph): Get rid of T.unpack / pack
 
@@ -192,7 +202,7 @@ literals = mkPattern' match'
         indentLvl <- indentLevel
         case ret of
           Function _ Nothing args body -> mconcat <$> sequence
-            [ pure $ emit $ matlabFun indentLvl name args
+            [ pure $ emit $ matlabFun indentLvl "FIXME" args
             , prettyPrintIL' body
             ]
           _ -> do
@@ -307,7 +317,7 @@ literals = mkPattern' match'
     ]
   match (Return _ value) = mconcat <$> sequence
     [ case value of
-        (Function _ _ _ _) -> prettyPrintIL' value
+        Function{} -> prettyPrintIL' value
         _ -> withIndent $ do
           indentLvl <- indentLevel
           mconcat <$> sequence
@@ -385,6 +395,10 @@ isLiteral BooleanLiteral{} = True
 isLiteral ObjectLiteral{} = True
 isLiteral ArrayLiteral{} = True
 isLiteral _ = False
+
+isFun :: AST -> Bool
+isFun Function{} = True
+isFun _ = False
 
 isComplexLiteral :: AST -> Bool
 -- isComplexLiteral Function{} = True
@@ -543,6 +557,9 @@ psRetVal iLvl = "psRetVal" <> indentLvlTxt (iLvl - 1)
 
 innerFunTxt :: Text
 innerFunTxt = "nested"
+
+applyFunTxt :: Maybe Text -> Text
+applyFunTxt = fromMaybe $ withPrefix innerFunTxt
 
 -- | Used for debugging the AST, mostly; shows the constructor name
 getDConst :: Show a => a -> Text
