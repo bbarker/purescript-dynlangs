@@ -132,15 +132,16 @@ literals = mkPattern' match'
   match (Var _ ident) | ident == C.undefined = pure $ emit undefinedName
   match (Var _ ident) = pure $ emit ident
   match (VariableIntroduction _ ident value) = mconcat <$> sequence
-    [ pure . emit $ ident
-    , maybe (pure mempty) (fmap (emit " = " <>) . prettyPrintIL') value
-    , pure $ emit ";"
+    [ pure . emit $ "DeclVar('" <> ident <> "', "
+    , maybe (pure $ emit "[]") prettyPrintIL' value
+    , pure $ emit ")"
     ]
   match (Assignment _ target value) = mconcat <$> sequence
-    [ prettyPrintIL' target
-    , pure $ emit " = "
+    [ pure $ emit "DeclVar('"
+    , prettyPrintIL' target
+    , pure $ emit "', "
     , prettyPrintIL' value
-    , pure $ emit ";"
+    , pure $ emit ")"
     ]
   match (App _ val []) = mconcat <$> sequence
     [ pure $ emit "Run("
