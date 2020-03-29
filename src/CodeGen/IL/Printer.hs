@@ -61,6 +61,9 @@ anonZero = matlabAnon []
 matlabNullary :: Text -> Text
 matlabNullary name = "function " <> psRetVal 0 <> " = " <> (withPrefix name) <> "()"
 
+matlabLam :: [Text] -> AST -> Text
+matlabLam args ret = matlabAnon args <> " Lambda(" <> prettyPrintIL [ret] <> ")"
+
 matlabFun :: Int -> Text -> [Text] -> Text
 matlabFun _ name [] = matlabNullary name
 matlabFun iLvl name args = "function " <> psRetVal iLvl <> " = "
@@ -218,6 +221,7 @@ literals = mkPattern' match'
     [ pure $ emit $ "function " <> psRetVal 0 <> " = "
     , pure . emit $ withPrefix name
     , pure . emit $ "()"
+    , pure $ emit $ "<<<<< DEBUG1 " <> getDConst ret <> ">>>>>"
     , prettyPrintIL' ret
     ]
   match (Function _ _ args ret) = mconcat <$> sequence
